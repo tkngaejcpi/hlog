@@ -4,7 +4,7 @@
 module Test (main) where
 
 import Control.Lens (Lens', makeLenses, (.~), (^.))
-import Control.Log.Class (MonadLog (log_))
+import Control.Log.Class (MonadLog (log_, traceInOut))
 import Control.Log.Type (HasLogger (logger), LogLevel (Debug, Info, None), Logger (Logger, _formatTime, _logLevel, _logOut), noLog)
 import Control.Monad.Reader (MonadIO (liftIO), ReaderT (runReaderT))
 import GHC.Conc (STM, TVar, atomically, newTVarIO, readTVar, readTVarIO, writeTVar)
@@ -14,6 +14,9 @@ import Test.Hspec (describe, hspec, it, shouldBe)
 --------------------------------------------------------------------------------
 fakeTimeString :: String
 fakeTimeString = "19700101 000000"
+
+prefixFakeTime :: String -> String
+prefixFakeTime s = fakeTimeString ++ " " ++ s
 
 modifyTVar :: TVar a -> (a -> a) -> STM ()
 modifyTVar v f = do
@@ -75,7 +78,7 @@ main = hspec $ do
         testEnv
 
       result <- readTVarIO (testEnv ^. proxyLog)
-      result `shouldBe` fakeTimeString ++ " [test]       test log\n"
+      result `shouldBe` prefixFakeTime "[test]       test log\n"
 
     it "ignore the output with lower loglevel" $ do
       testEnv <- mkTestEnv
@@ -88,6 +91,24 @@ main = hspec $ do
 
       result <- readTVarIO (testEnv ^. proxyLog)
       result `shouldBe` ""
+
+    it "'traceInOut' can hook a function and return input and output" $ do
+      testEnv <- mkTestEnv
+
+      runReaderT
+        ( do
+            let f = traceInOut Info "test" (+ 1)
+            let a = 1
+
+            f a
+        )
+        testEnv
+
+      result <- readTVarIO (testEnv ^. proxyLog)
+      result
+        `shouldBe` ( prefixFakeTime "[test]       function called with input 1\n"
+                       ++ prefixFakeTime "[test]       function ended, it returned 2\n"
+                   )
 
     it "'nolog' with no log output" $ do
       testEnv <- (logger .~ noLog) <$> mkTestEnv

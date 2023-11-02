@@ -30,6 +30,12 @@ container = ("[", "]")
 scopePadding :: Int
 scopePadding = 12
 
+traceInPrompt :: String
+traceInPrompt = "function called with input"
+
+traceOutPrompt :: String
+traceOutPrompt = "function ended, it returned"
+
 -- helpers
 --------------------------------------------------------------------------------
 padding :: Int -> String -> String
@@ -64,6 +70,14 @@ class (Monad m) => MonadLog m where
             out log
             out lineBreak
         )
+
+  -- | 'traceInOut' hook a function and log its input and output.
+  traceInOut :: (Show a, Show b) => LogLevel -> String -> (a -> b) -> a -> m b
+  traceInOut ll s f a = do
+    log_ ll s (traceInPrompt ++ separator ++ show a)
+    let b = f a
+    log_ ll s (traceOutPrompt ++ separator ++ show b)
+    return b
 
 -- instances
 --------------------------------------------------------------------------------
