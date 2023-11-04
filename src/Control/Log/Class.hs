@@ -10,32 +10,12 @@ module Control.Log.Class
   )
 where
 
-import Control.Lens ((^.))
-import Control.Log.Type (HasLogger (formatTime, level, logOut, logger))
+import Control.Lens (Field1 (_1), Field2 (_2), (^.))
+import Control.Log.Type (HasLogger (formatTime, level, logConfig, logOut, logger), LogConfig, container, linebreak, scopePadding, separator, traceInPrompt, traceOutPrompt)
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader.Class (MonadReader, asks)
 import Data.Time (getCurrentTime)
-
--- constants
---------------------------------------------------------------------------------
-separator :: String
-separator = " "
-
-lineBreak :: String
-lineBreak = "\n"
-
-container :: (String, String)
-container = ("[", "]")
-
-scopePadding :: Int
-scopePadding = 12
-
-traceInPrompt :: String
-traceInPrompt = "function called with input"
-
-traceOutPrompt :: String
-traceOutPrompt = "function ended, it returned"
 
 -- helpers
 --------------------------------------------------------------------------------
@@ -49,6 +29,8 @@ padding k s = s ++ replicate paddingAmount ' '
 
 -- | 'MonadLog' gives the ability to log.
 class (Monad m) => MonadLog l m | m -> l where
+  config :: m LogConfig
+
   -- | 'out' tells how to output log, 'out' should never format the string.
   out :: String -> m ()
 
@@ -60,23 +42,35 @@ class (Monad m) => MonadLog l m | m -> l where
 
   -- | automatically impl.
   log_ :: l -> String -> String -> m ()
-  log_ level scope log =
-    isOkToOut level
-      >>= flip
-        when
-        ( do
-            getTimeString >>= out >> out separator
-            out (padding scopePadding (fst container ++ scope ++ snd container)) >> out separator
-            out log
-            out lineBreak
-        )
+  log_ level scope log = do
+    cf <- config
+    ok <- isOkToOut level
+
+    when
+      ok
+      ( do
+          getTimeString >>= out >> out (cf ^. separator)
+          out
+            ( padding
+                (cf ^. scopePadding)
+                ( (cf ^. container . _1)
+                    ++ scope
+                    ++ (cf ^. container . _2)
+                )
+            )
+            >> out (cf ^. separator)
+          out log
+          out (cf ^. linebreak)
+      )
 
   -- | 'traceInOut' hook a function and log its input and output.
   traceInOut :: (Show a, Show b) => l -> String -> (a -> b) -> a -> m b
   traceInOut ll s f a = do
-    log_ ll s (traceInPrompt ++ separator ++ show a)
+    cf <- config
+
+    log_ ll s ((cf ^. traceInPrompt) ++ (cf ^. separator) ++ show a)
     let b = f a
-    log_ ll s (traceOutPrompt ++ separator ++ show b)
+    log_ ll s ((cf ^. traceOutPrompt) ++ (cf ^. separator) ++ show b)
     return b
 
 -- instances
@@ -92,6 +86,9 @@ instance
   ) =>
   MonadLog l m
   where
+  config :: m LogConfig
+  config = asks (^. logger . logConfig)
+
   out :: String -> m ()
   out s = asks (^. logger . logOut) >>= \f -> liftIO $ f s
 

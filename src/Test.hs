@@ -4,9 +4,9 @@
 
 module Test (main) where
 
-import Control.Lens (Lens', makeLenses, (.~), (^.))
+import Control.Lens (Lens', makeLenses, (&), (.~), (^.))
 import Control.Log.Class (MonadLog (log_, traceInOut))
-import Control.Log.Type (DefaultLogger, HasLogger (logger), LogLevel (Debug, Info, None), Logger (Logger, _formatTime, _level, _logOut), noLog)
+import Control.Log.Type (DefaultLogger, HasLogger (formatTime, logOut, logger), LogLevel (Debug, Info, None), Logger (Logger, _formatTime, _level, _logConfig, _logOut), defaultLogConfig, defaultLogger, noLog)
 import Control.Monad.Reader (MonadIO (liftIO), ReaderT (runReaderT))
 import GHC.Conc (STM, TVar, atomically, newTVarIO, readTVar, readTVarIO, writeTVar)
 import Test.Hspec (describe, hspec, it, shouldBe)
@@ -39,11 +39,9 @@ instance HasLogger TestEnv LogLevel where
 
 mkTestLogger :: TVar String -> DefaultLogger
 mkTestLogger var =
-  Logger
-    { _level = Info,
-      _formatTime = const fakeTimeString,
-      _logOut = \s -> atomically $ modifyTVar var (++ s)
-    }
+  defaultLogger
+    & (formatTime .~ const fakeTimeString)
+      . (logOut .~ \s -> atomically $ modifyTVar var (++ s))
 
 mkTestEnv :: IO TestEnv
 mkTestEnv = do
