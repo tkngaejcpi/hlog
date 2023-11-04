@@ -1,11 +1,12 @@
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Test (main) where
 
 import Control.Lens (Lens', makeLenses, (.~), (^.))
 import Control.Log.Class (MonadLog (log_, traceInOut))
-import Control.Log.Type (HasLogger (logger), LogLevel (Debug, Info, None), Logger (Logger, _formatTime, _logLevel, _logOut), noLog)
+import Control.Log.Type (DefaultLogger, HasLogger (logger), LogLevel (Debug, Info, None), Logger (Logger, _formatTime, _level, _logOut), noLog)
 import Control.Monad.Reader (MonadIO (liftIO), ReaderT (runReaderT))
 import GHC.Conc (STM, TVar, atomically, newTVarIO, readTVar, readTVarIO, writeTVar)
 import Test.Hspec (describe, hspec, it, shouldBe)
@@ -26,20 +27,20 @@ modifyTVar v f = do
 -- init test env
 --------------------------------------------------------------------------------
 data TestEnv = TestEnv
-  { _lg :: Logger,
+  { _lg :: DefaultLogger,
     _proxyLog :: TVar String
   }
 
 $(makeLenses ''TestEnv)
 
-instance HasLogger TestEnv where
-  logger :: Lens' TestEnv Logger
+instance HasLogger TestEnv LogLevel where
+  logger :: Lens' TestEnv DefaultLogger
   logger = lg
 
-mkTestLogger :: TVar String -> Logger
+mkTestLogger :: TVar String -> DefaultLogger
 mkTestLogger var =
   Logger
-    { _logLevel = Info,
+    { _level = Info,
       _formatTime = const fakeTimeString,
       _logOut = \s -> atomically $ modifyTVar var (++ s)
     }

@@ -1,8 +1,9 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 
 module Control.Log.Class
   ( MonadLog (..),
@@ -10,7 +11,7 @@ module Control.Log.Class
 where
 
 import Control.Lens ((^.))
-import Control.Log.Type (HasLogger (formatTime, logLevel, logOut, logger), LogLevel)
+import Control.Log.Type (HasLogger (formatTime, level, logOut, logger))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader.Class (MonadReader, asks)
@@ -47,19 +48,18 @@ padding k s = s ++ replicate paddingAmount ' '
 --------------------------------------------------------------------------------
 
 -- | 'MonadLog' gives the ability to log.
--- 'MonadLog' depends on 'LogLevel'.
-class (Monad m) => MonadLog m where
+class (Monad m) => MonadLog l m | m -> l where
   -- | 'out' tells how to output log, 'out' should never format the string.
   out :: String -> m ()
 
   -- | 'isOkToOut' tells if this log level should output
-  isOkToOut :: LogLevel -> m Bool
+  isOkToOut :: l -> m Bool
 
   -- | 'getTimeString' tells how to get time string
   getTimeString :: m String
 
   -- | automatically impl.
-  log_ :: LogLevel -> String -> String -> m ()
+  log_ :: l -> String -> String -> m ()
   log_ level scope log =
     isOkToOut level
       >>= flip
@@ -72,7 +72,7 @@ class (Monad m) => MonadLog m where
         )
 
   -- | 'traceInOut' hook a function and log its input and output.
-  traceInOut :: (Show a, Show b) => LogLevel -> String -> (a -> b) -> a -> m b
+  traceInOut :: (Show a, Show b) => l -> String -> (a -> b) -> a -> m b
   traceInOut ll s f a = do
     log_ ll s (traceInPrompt ++ separator ++ show a)
     let b = f a
@@ -84,18 +84,19 @@ class (Monad m) => MonadLog m where
 
 -- | impl
 instance
-  ( HasLogger r,
+  ( HasLogger r l,
     MonadIO m,
     Monad m,
-    MonadReader r m
+    MonadReader r m,
+    Ord l
   ) =>
-  MonadLog m
+  MonadLog l m
   where
   out :: String -> m ()
   out s = asks (^. logger . logOut) >>= \f -> liftIO $ f s
 
-  isOkToOut :: LogLevel -> m Bool
-  isOkToOut ll = (>= ll) <$> asks (^. logger . logLevel)
+  isOkToOut :: l -> m Bool
+  isOkToOut ll = (>= ll) <$> asks (^. logger . level)
 
   getTimeString :: m String
   getTimeString = asks (^. logger . formatTime) <*> liftIO getCurrentTime
