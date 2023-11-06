@@ -11,7 +11,7 @@ module Control.Log.Class
 where
 
 import Control.Lens (Field1 (_1), Field2 (_2), (^.))
-import Control.Log.Type (HasLogger (formatTime, level, logConfig, logOut, logger), LogConfig, container, debugLevelPadding, linebreak, scopePadding, separator, traceInPrompt, traceOutPrompt)
+import Control.Log.Type (HasLogger (formatTime, level, logConfig, logOut, logger), LogConfig, debugLevelPadding, formatString, linebreak, messageSeparator, padding, prompt, scopePadding, separator, traceInPrompt, traceOutPrompt)
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader.Class (MonadReader, asks)
@@ -19,10 +19,19 @@ import Data.Time (getCurrentTime)
 
 -- helpers
 --------------------------------------------------------------------------------
-padding :: Int -> String -> String
-padding k s = s ++ replicate paddingAmount ' '
+formatLog :: (Show l) => LogConfig -> String -> l -> String -> String -> String
+formatLog cfg time level scope msg =
+  time
+    ++ sprt
+    ++ rightPadding (cfg ^. padding . debugLevelPadding) (show level)
+    ++ sprt
+    ++ rightPadding (cfg ^. padding . scopePadding) scope
+    ++ (cfg ^. formatString . messageSeparator)
+    ++ msg
+    ++ (cfg ^. formatString . linebreak)
   where
-    paddingAmount = max 0 (k - length s)
+    sprt = cfg ^. formatString . separator
+    rightPadding k s = s ++ replicate (max (length s - k) 0) ' '
 
 -- classes
 --------------------------------------------------------------------------------
@@ -42,36 +51,20 @@ class (Monad m, Show l) => MonadLog l m | m -> l where
 
   -- | automatically impl.
   log_ :: l -> String -> String -> m ()
-  log_ level scope log = do
-    cf <- config
+  log_ level scope msg = do
+    cfg <- config
     ok <- isOkToOut level
 
-    when
-      ok
-      ( do
-          getTimeString >>= out >> out (cf ^. separator)
-          out (padding (cf ^. debugLevelPadding) (show level))
-          out
-            ( padding
-                (cf ^. scopePadding)
-                ( (cf ^. container . _1)
-                    ++ scope
-                    ++ (cf ^. container . _2)
-                )
-            )
-            >> out (cf ^. separator)
-          out log
-          out (cf ^. linebreak)
-      )
+    when ok (getTimeString >>= \t -> out (formatLog cfg t level scope msg))
 
   -- | 'traceInOut' hook a function and log its input and output.
   traceInOut :: (Show a, Show b) => l -> String -> (a -> b) -> a -> m b
   traceInOut ll s f a = do
-    cf <- config
+    cfg <- config
 
-    log_ ll s ((cf ^. traceInPrompt) ++ (cf ^. separator) ++ show a)
+    log_ ll s ((cfg ^. prompt . traceInPrompt) ++ " " ++ show a)
     let b = f a
-    log_ ll s ((cf ^. traceOutPrompt) ++ (cf ^. separator) ++ show b)
+    log_ ll s ((cfg ^. prompt . traceOutPrompt) ++ " " ++ show b)
     return b
 
 -- instances
@@ -79,12 +72,12 @@ class (Monad m, Show l) => MonadLog l m | m -> l where
 
 -- | impl
 instance
-  ( HasLogger r l,
+  ( Show l,
+    Ord l,
+    HasLogger r l,
     MonadIO m,
     Monad m,
-    MonadReader r m,
-    Show l,
-    Ord l
+    MonadReader r m
   ) =>
   MonadLog l m
   where

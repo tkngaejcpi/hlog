@@ -6,15 +6,21 @@ module Control.Log.Type
   ( LogLevel (..),
     Logger (..),
     DefaultLogger,
+    LogFormatString (..),
+    LogPadding (..),
+    LogPrompt (..),
     LogConfig (..),
     HasLogger (..),
     separator,
+    messageSeparator,
     linebreak,
-    container,
     debugLevelPadding,
     scopePadding,
     traceInPrompt,
     traceOutPrompt,
+    formatString,
+    padding,
+    prompt,
     defaultLogConfig,
     defaultLogger,
     noLog,
@@ -49,7 +55,7 @@ data Logger l = Logger
     _level :: !l,
     -- | '_formatTime' decides a time format.
     _formatTime :: !(UTCTime -> String),
-    -- | '_logConfig' is the config to control how the log format
+    -- | '_logConfig' is the config to control how the log format.
     _logConfig :: !LogConfig,
     -- | '_logOut' controls how to output log. '_logOut' should not append a \'\\n\' automatically.
     _logOut :: !(String -> IO ())
@@ -58,34 +64,76 @@ data Logger l = Logger
 -- | 'Logger' is a 'Logger' with default 'LogLevel' as its type parameter.
 type DefaultLogger = Logger LogLevel
 
--- | 'LogConfig' is the config to control how the log format
+-- | 'LogConfig' is the config to control how the log format.
 data LogConfig = LogConfig
+  { _formatString :: LogFormatString,
+    _padding :: LogPadding,
+    _prompt :: LogPrompt
+  }
+  deriving (Show, Eq)
+
+-- | 'LogFormatString' is the collection of the string used to format the log.
+data LogFormatString = LogFormatString
   { _separator :: String,
-    _linebreak :: String,
-    _container :: (String, String),
-    _debugLevelPadding :: Int,
-    _scopePadding :: Int,
-    _traceInPrompt :: String,
+    _messageSeparator :: String,
+    _linebreak :: String
+  }
+  deriving (Show, Eq)
+
+-- | 'LogPadding' is the collection of the padding of the log.
+data LogPadding = LogPadding
+  { _debugLevelPadding :: Int,
+    _scopePadding :: Int
+  }
+  deriving (Show, Eq)
+
+-- | 'LogPrompt' is the collection of the prompts will be used in logging.
+data LogPrompt = LogPrompt
+  { _traceInPrompt :: String,
     _traceOutPrompt :: String
   }
+  deriving (Show, Eq)
 
 -- template
 $(makeClassy ''Logger)
 $(makeLenses ''LogConfig)
+$(makeLenses ''LogFormatString)
+$(makeLenses ''LogPadding)
+$(makeLenses ''LogPrompt)
 
 -- utils
 --------------------------------------------------------------------------------
+defaultLogFormatString :: LogFormatString
+defaultLogFormatString =
+  LogFormatString
+    { _separator = " | ",
+      _messageSeparator = " :: ",
+      _linebreak = "\n"
+    }
+
+defaultLogPadding :: LogPadding
+defaultLogPadding =
+  LogPadding
+    { _debugLevelPadding = 8,
+      _scopePadding = 12
+    }
+
+enUSLogPrompt :: LogPrompt
+enUSLogPrompt =
+  LogPrompt
+    { _traceInPrompt = "function called with input",
+      _traceOutPrompt = "function ended, it returned"
+    }
+
+defaultLogPrompt :: LogPrompt
+defaultLogPrompt = enUSLogPrompt
 
 defaultLogConfig :: LogConfig
 defaultLogConfig =
   LogConfig
-    { _separator = " ",
-      _linebreak = "\n",
-      _container = ("[", "]"),
-      _debugLevelPadding = 8,
-      _scopePadding = 12,
-      _traceInPrompt = "function called with input",
-      _traceOutPrompt = "function ended, it returned"
+    { _formatString = defaultLogFormatString,
+      _padding = defaultLogPadding,
+      _prompt = defaultLogPrompt
     }
 
 defaultLogger :: DefaultLogger
@@ -93,7 +141,7 @@ defaultLogger =
   Logger
     { _logConfig = defaultLogConfig,
       _level = Info,
-      _formatTime = Data.Time.formatTime defaultTimeLocale "%Y%m%d %H:%M:%S",
+      _formatTime = Data.Time.formatTime defaultTimeLocale "%Y%m%d%H:%M:%S",
       _logOut = putStr
     }
 

@@ -13,12 +13,6 @@ import Test.Hspec (describe, hspec, it, shouldBe)
 
 -- helper
 --------------------------------------------------------------------------------
-fakeTimeString :: String
-fakeTimeString = "19700101 000000"
-
-prefixFakeTime :: String -> String
-prefixFakeTime s = fakeTimeString ++ " " ++ s
-
 modifyTVar :: TVar a -> (a -> a) -> STM ()
 modifyTVar v f = do
   x <- readTVar v
@@ -40,7 +34,7 @@ instance HasLogger TestEnv LogLevel where
 mkTestLogger :: TVar String -> DefaultLogger
 mkTestLogger var =
   defaultLogger
-    & (formatTime .~ const fakeTimeString)
+    & (formatTime .~ const "19700101000000")
       . (logOut .~ \s -> atomically $ modifyTVar var (++ s))
 
 mkTestEnv :: IO TestEnv
@@ -77,7 +71,7 @@ main = hspec $ do
         testEnv
 
       result <- readTVarIO (testEnv ^. proxyLog)
-      result `shouldBe` prefixFakeTime "Info    [test]       test log\n"
+      result `shouldBe` "19700101000000 | Info | test :: test log\n"
 
     it "ignore the output with lower loglevel" $ do
       testEnv <- mkTestEnv
@@ -105,8 +99,8 @@ main = hspec $ do
 
       result <- readTVarIO (testEnv ^. proxyLog)
       result
-        `shouldBe` ( prefixFakeTime "Info    [test]       function called with input 1\n"
-                       ++ prefixFakeTime "Info    [test]       function ended, it returned 2\n"
+        `shouldBe` ( "19700101000000 | Info | test :: function called with input 1\n"
+                       ++ "19700101000000 | Info | test :: function ended, it returned 2\n"
                    )
 
     it "'nolog' with no log output" $ do

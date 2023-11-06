@@ -1,4 +1,3 @@
-
 module HLog
   ( module Control.Log,
   )
