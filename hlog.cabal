@@ -22,10 +22,11 @@ maintainer:         rileycki3333@gmail.com
 extra-source-files: CHANGELOG.md
 
 library
-    exposed-modules:  HLog
+    exposed-modules:  Control.Log
+    exposed-modules: Control.Log.Type, Control.Log.Class
 
     -- Modules included in this library but not exported.
-    other-modules: Test, Control.Log, Control.Log.Type, Control.Log.Class
+    other-modules: Test
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
