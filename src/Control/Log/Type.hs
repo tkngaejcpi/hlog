@@ -11,6 +11,7 @@ module Control.Log.Type
     separator,
     linebreak,
     container,
+    debugLevelPadding,
     scopePadding,
     traceInPrompt,
     traceOutPrompt,
@@ -62,6 +63,7 @@ data LogConfig = LogConfig
   { _separator :: String,
     _linebreak :: String,
     _container :: (String, String),
+    _debugLevelPadding :: Int,
     _scopePadding :: Int,
     _traceInPrompt :: String,
     _traceOutPrompt :: String
@@ -80,6 +82,7 @@ defaultLogConfig =
     { _separator = " ",
       _linebreak = "\n",
       _container = ("[", "]"),
+      _debugLevelPadding = 8,
       _scopePadding = 12,
       _traceInPrompt = "function called with input",
       _traceOutPrompt = "function ended, it returned"

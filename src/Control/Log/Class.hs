@@ -11,7 +11,7 @@ module Control.Log.Class
 where
 
 import Control.Lens (Field1 (_1), Field2 (_2), (^.))
-import Control.Log.Type (HasLogger (formatTime, level, logConfig, logOut, logger), LogConfig, container, linebreak, scopePadding, separator, traceInPrompt, traceOutPrompt)
+import Control.Log.Type (HasLogger (formatTime, level, logConfig, logOut, logger), LogConfig, container, debugLevelPadding, linebreak, scopePadding, separator, traceInPrompt, traceOutPrompt)
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader.Class (MonadReader, asks)
@@ -28,7 +28,7 @@ padding k s = s ++ replicate paddingAmount ' '
 --------------------------------------------------------------------------------
 
 -- | 'MonadLog' gives the ability to log.
-class (Monad m) => MonadLog l m | m -> l where
+class (Monad m, Show l) => MonadLog l m | m -> l where
   config :: m LogConfig
 
   -- | 'out' tells how to output log, 'out' should never format the string.
@@ -50,6 +50,7 @@ class (Monad m) => MonadLog l m | m -> l where
       ok
       ( do
           getTimeString >>= out >> out (cf ^. separator)
+          out (padding (cf ^. debugLevelPadding) (show level))
           out
             ( padding
                 (cf ^. scopePadding)
@@ -82,6 +83,7 @@ instance
     MonadIO m,
     Monad m,
     MonadReader r m,
+    Show l,
     Ord l
   ) =>
   MonadLog l m

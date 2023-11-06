@@ -77,7 +77,7 @@ main = hspec $ do
         testEnv
 
       result <- readTVarIO (testEnv ^. proxyLog)
-      result `shouldBe` prefixFakeTime "[test]       test log\n"
+      result `shouldBe` prefixFakeTime "Info    [test]       test log\n"
 
     it "ignore the output with lower loglevel" $ do
       testEnv <- mkTestEnv
@@ -105,8 +105,8 @@ main = hspec $ do
 
       result <- readTVarIO (testEnv ^. proxyLog)
       result
-        `shouldBe` ( prefixFakeTime "[test]       function called with input 1\n"
-                       ++ prefixFakeTime "[test]       function ended, it returned 2\n"
+        `shouldBe` ( prefixFakeTime "Info    [test]       function called with input 1\n"
+                       ++ prefixFakeTime "Info    [test]       function ended, it returned 2\n"
                    )
 
     it "'nolog' with no log output" $ do
