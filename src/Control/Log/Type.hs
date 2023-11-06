@@ -141,7 +141,7 @@ defaultLogger =
   Logger
     { _logConfig = defaultLogConfig,
       _level = Info,
-      _formatTime = Data.Time.formatTime defaultTimeLocale "%Y%m%d%H:%M:%S",
+      _formatTime = Data.Time.formatTime defaultTimeLocale "%Y%m%d%H%M%S",
       _logOut = putStr
     }
 
